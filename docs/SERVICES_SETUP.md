@@ -166,6 +166,30 @@ SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
+*Nouveau*:
+### 4.5 Gestion des Configurations des Services pour Multitenancy
+
+Avec une architecture multitenant, `serveur.cjs` ne s'appuiera pas uniquement sur des variables d'environnement globales pour les configurations des services externes spécifiques aux opérations des tenants (comme les identifiants API Twilio d'un tenant, le numéro de téléphone Twilio du tenant, l'adresse SIP du tenant, ou les contacts d'urgence).
+
+- **Supabase comme source de vérité**: La base de données Supabase stockera ces configurations spécifiques à chaque tenant. Par exemple, dans la table `accounts` (ou une table de configuration liée), on trouvera :
+    - `tenant_twilio_account_sid` (si chaque tenant a son propre sous-compte ou si Ethiq gère cela)
+    - `tenant_twilio_auth_token`
+    - `tenant_twilio_phone_number` (le numéro Twilio provisionné pour ce tenant)
+    - `tenant_sip_address`
+    - `tenant_emergency_contact_phone`
+    - Potentiellement, des configurations spécifiques pour Google Cloud Speech par tenant (ex: modèle de langue préféré, clés API si le tenant fournit les siennes).
+
+- **Accès par `serveur.cjs`**:
+    - `serveur.cjs` utilisera ses propres variables d'environnement Supabase (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`) pour se connecter à la base de données.
+    - Lors du traitement d'un appel ou d'une session WebSocket pour un tenant identifié, `serveur.cjs` interrogera Supabase pour récupérer les configurations spécifiques à ce tenant.
+    - Les clients des services (Twilio, Google Cloud Speech) seront ensuite instanciés dynamiquement avec ces configurations récupérées.
+
+- **Variables d'environnement globales vs. spécifiques au tenant**:
+    - Les variables d'environnement globales pour Twilio (ex: `TWILIO_ACCOUNT_SID` dans le `.env` de `serveur.cjs`) pourraient représenter un compte maître Ethiq utilisé pour la gestion administrative des numéros ou comme solution de repli, mais les opérations directes pour le compte d'un tenant (envoyer un SMS depuis *son* numéro, utiliser *ses* crédits) utiliseront les configurations du tenant stockées dans Supabase.
+    - De même pour `GOOGLE_APPLICATION_CREDENTIALS`, cela pourrait pointer vers un compte de service central Ethiq, mais la journalisation et potentiellement certaines configurations pourraient être adaptées par tenant.
+
+Cette approche assure une meilleure isolation, flexibilité et permet une gestion plus fine des ressources et des coûts par tenant.
+
 ### Coûts estimés:
 - Plan gratuit: 500MB DB, 2GB bandwidth, 50K requêtes auth
 - Plan Pro: 25$/mois/projet
@@ -174,22 +198,22 @@ SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ### Fichier `.env.example`:
 ```bash
-# Twilio
+# Twilio (Peuvent être pour un compte maître Ethiq ou comme valeurs par défaut si non surchargées par tenant depuis DB)
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_PHONE_NUMBER=+15141234567
+TWILIO_PHONE_NUMBER=+15141234567 # Numéro de fallback ou principal pour l'application, pas nécessairement celui utilisé pour les tenants
 
-# Google Cloud
+# Google Cloud (Pour le compte de service principal de l'application)
 GOOGLE_APPLICATION_CREDENTIALS=./credentials/google-cloud.json
 GOOGLE_CLOUD_PROJECT_ID=ethiq-fraud-detection
 
-# OpenAI
+# OpenAI (Clé API centrale pour l'application)
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-# Supabase
+# Supabase (Essentiel pour que serveur.cjs accède à toutes les configurations, y compris celles des tenants)
 SUPABASE_URL=https://xxxxxxxxxxxxx.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... # Clé publique pour le frontend si nécessaire
+SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... # Clé de service pour le backend (serveur.cjs)
 
 # Application
 NODE_ENV=production

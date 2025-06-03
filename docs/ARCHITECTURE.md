@@ -33,13 +33,14 @@ L'application actuelle fonctionne avec:
 ┌──────────────────────────┐    ┌──────────────────────────┐
 │    API Management        │    │   Serveur WebSocket      │
 │  (Gestion des comptes)   │    │  (Traitement d'appels)   │
+│                          │    │  (serveur.cjs)           │
 └──────────────────────────┘    └──────────────────────────┘
                 │                               │
                 └───────────────┬───────────────┘
                                 ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                        Base de données                        │
-│                         (Supabase)                            │
+│         (Supabase - Gère aussi les configurations tenant)     │
 └─────────────────────────────────────────────────────────────┘
                                 │
                 ┌───────────────┼───────────────┐
@@ -111,34 +112,45 @@ L'application actuelle fonctionne avec:
 ### 3. Flux d'appel multitenant
 
 1. **Réception d'appel**
-   - L'appel arrive sur un numéro Twilio assigné à un client
-   - Twilio déclenche le webhook vers notre serveur
+   - L'appel arrive sur un numéro Twilio assigné à un tenant (client).
+   - Twilio déclenche le webhook configuré vers `serveur.cjs`.
 
-2. **Identification du tenant**
-   - Le serveur identifie le client via le numéro Twilio appelé
-   - Récupération des informations du compte depuis la base de données
+2. **Identification du tenant et Récupération de la Configuration**
+   - `serveur.cjs` identifie le tenant (ex: via le numéro Twilio unique sur lequel l'appel a été reçu, mappé au tenant dans Supabase).
+   - Les informations et configurations spécifiques au tenant (identifiants Twilio, numéros de contact d'urgence, adresses SIP, préférences d'alerte, etc.) sont récupérées depuis Supabase.
 
-3. **Traitement personnalisé**
-   - Configuration des paramètres spécifiques au client
-   - Démarrage du stream WebSocket avec contexte client
-   - Analyse et alertes selon les préférences du client
+3. **Démarrage de la Conférence et du Stream WebSocket**
+   - Une conférence Twilio est créée, potentiellement avec un nom identifiant le tenant (ex: `Conf-${tenantId}-${callerNumber}`).
+   - `serveur.cjs` initie la connexion WebSocket vers le client Twilio (via la TwiML `<Stream>`).
+   - *Nouveau*: La connexion WebSocket établie par Twilio vers `serveur.cjs` est authentifiée (ex: via un token JWT propre au tenant, préalablement généré et stocké, ou via un identifiant de session sécurisé) pour associer la session WebSocket au bon tenant.
+
+4. **Traitement Personnalisé de l'Appel**
+   - Le client Google Cloud Speech est instancié dynamiquement, utilisant les configurations/identifiants appropriés (soit centraux, soit spécifiques au tenant si applicable, récupérés de Supabase).
+   - Le flux audio est traité par `serveur.cjs`. L'état de la session (ex: `recognizeStream`, `streamActive`, `alertSent`) est géré de manière isolée pour cette connexion/ce tenant.
+   - En cas de détection de fraude (basée sur les mots-clés et l'analyse IA):
+     - La fonction `triggerFraudAlert` est appelée avec le contexte du tenant.
+     - L'alerte SMS est envoyée au contact d'urgence du tenant (récupéré de Supabase).
+     - L'annonce est jouée dans la conférence Twilio spécifique au tenant.
+   - Si l'appel doit être transféré, la fonction `addSipToConference` utilise l'adresse SIP et le `callerId` (numéro Twilio du tenant) spécifiques au tenant, récupérés de Supabase.
 
 ### 4. Isolation des données
 
-- **Row Level Security (RLS)** dans Supabase pour garantir l'isolation
-- Chaque requête inclut le contexte du tenant
-- Les WebSockets sont isolés par session/client
+- **Row Level Security (RLS)** dans Supabase pour garantir l'isolation des données stockées (comptes, logs d'appels, contacts, etc.). Chaque requête à la base de données depuis `serveur.cjs` ou l'API de management s'exécute dans le contexte du tenant approprié.
+- *Nouveau*: L'état des sessions WebSocket actives dans `serveur.cjs` (incluant les flux de reconnaissance vocale et les indicateurs d'état) est strictement isolé par tenant. Chaque instance `ws` (connexion WebSocket) maintient son propre contexte et ses propres ressources.
+- Les WebSockets sont isolés par session/client. *(Note: Répétition partielle, le point précédent est plus spécifique)*
 
 ### 5. Services externes
 
 #### Twilio
-- Pool de numéros disponibles par région
-- Attribution automatique lors de la création de compte
-- Configuration des webhooks par numéro
+- Pool de numéros disponibles par région (géré par Ethiq ou le tenant).
+- Attribution lors de la création de compte.
+- Configuration des webhooks par numéro pour pointer vers `serveur.cjs`.
+- *Nouveau*: `serveur.cjs` utilise les identifiants d'API Twilio (Account SID, Auth Token) spécifiques au tenant, ou mappés au tenant, récupérés de Supabase pour toutes les opérations API (création d'appel, modification de conférence, envoi de SMS). Le `TWILIO_PHONE_NUMBER` utilisé est celui du tenant.
 
 #### Google Cloud Speech
-- Compte de service unique avec quotas
-- Facturation trackée par tenant
+- Compte de service unique avec quotas ou potentiellement des configurations par tenant si nécessaire pour une facturation/gestion plus fine.
+- *Nouveau*: `serveur.cjs` instancie le client Speech-to-Text. Si des configurations spécifiques au tenant sont utilisées (ex: modèle de langue personnalisé, clés API distinctes), celles-ci sont chargées depuis Supabase. La journalisation des appels API vers Google Cloud inclura des identifiants de tenant pour le suivi.
+- Facturation trackée par tenant (si possible via les mécanismes de Google Cloud ou par estimation interne basée sur l'usage).
 
 #### OpenAI
 - Clé API unique

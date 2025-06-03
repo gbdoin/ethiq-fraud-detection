@@ -12,9 +12,24 @@
 
 #### 1.2 Refactoring du serveur
 - [ ] Extraire les configurations hardcodées
+  - [ ] *Nouveau*: Identifier toutes les configurations et identifiants hardcodés (Twilio, Google Cloud, numéros de téléphone, adresses SIP, etc.) dans `serveur.cjs`.
+  - [ ] *Nouveau*: Concevoir un schéma dans Supabase pour stocker les configurations spécifiques à chaque tenant (clés API, numéros de téléphone, adresses SIP, contacts d'urgence, préférences d'alerte, etc.).
 - [ ] Implémenter la gestion des tenants
+  - [ ] *Nouveau*: Définir un mécanisme clair pour l'identification des tenants lors des requêtes HTTP entrantes (ex: webhooks Twilio basés sur des numéros "To" uniques mappés aux tenants).
+  - [ ] *Nouveau*: Définir un mécanisme clair pour l'identification et l'authentification des tenants sur les connexions WebSocket (ex: authentification par token JWT émis par Supabase).
+  - [ ] *Nouveau*: Implémenter la logique dans `serveur.cjs` pour récupérer et utiliser les configurations spécifiques au tenant depuis Supabase en temps réel, basé sur le tenant identifié.
+  - [ ] *Nouveau*: Assurer l'instanciation dynamique des clients Twilio et Google Speech en utilisant les identifiants spécifiques au tenant.
 - [ ] Adapter le WebSocket pour multi-sessions
+  - [ ] *Détail*: Refactoriser la gestion des connexions WebSocket pour stocker et gérer l'état de session (ex: `recognizeStream`, `streamActive`, `alertSent`) de manière indépendante pour chaque tenant connecté.
+  - [ ] *Nouveau*: Utiliser un espace de noms pour les noms de conférence avec un identifiant de tenant pour prévenir les collisions (ex: `Conf-${tenantId}-${callerNumber}`).
 - [ ] Créer un système de configuration par environnement
+- [ ] *Nouveau*: **Refactoriser la logique métier pour la prise en compte des tenants**
+  - [ ] *Nouveau*: Modifier la fonction `triggerFraudAlert` pour qu'elle soit sensible au tenant :
+    - [ ] Utiliser les numéros de contact d'urgence spécifiques au tenant, récupérés depuis Supabase.
+    - [ ] Cibler le `conferenceSid` spécifique de l'appel du tenant.
+  - [ ] *Nouveau*: Modifier la fonction `addSipToConference` pour utiliser les adresses SIP spécifiques au tenant et le numéro Twilio du tenant comme `callerId`.
+- [ ] *Nouveau*: **Journalisation et gestion des erreurs améliorées**
+  - [ ] *Nouveau*: Améliorer la journalisation dans `serveur.cjs` pour inclure les identifiants des tenants afin d'améliorer le débogage et la surveillance (lien avec Phase 4.1).
 
 #### 1.3 API de gestion
 - [ ] Endpoints d'authentification (login, register, logout)
