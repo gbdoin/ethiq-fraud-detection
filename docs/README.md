@@ -1,128 +1,123 @@
-# Documentation Ethiq - Solution de détection de fraude multitenant
+# Ethiq Fraud Detection System - Technical Documentation
 
-## Vue d'ensemble
+## Overview
 
-Cette documentation décrit la transformation de l'application Ethiq de détection de fraude téléphonique d'une solution single-tenant vers une architecture SaaS multitenant scalable.
+Ethiq is a real-time fraud detection system that monitors phone conversations for potential scam attempts. The system uses call forwarding to preserve STIR/SHAKEN authentication while providing transparent fraud protection for vulnerable individuals.
 
-## Objectif
+## How It Works
 
-Permettre à plusieurs clients d'utiliser la même infrastructure tout en:
-- Maintenant l'isolation complète des données
-- Automatisant le provisioning des ressources
-- Minimisant les interventions manuelles
-- Optimisant les coûts d'infrastructure
+1. **Call Forwarding**: Users configure their phones to forward calls to their personal Twilio number
+2. **Real-Time Transcription**: Twilio transcribes conversations in real-time with partial results
+3. **Keyword Detection**: The system monitors transcripts for fraud-related keywords
+4. **AI Analysis**: When keywords are detected, an LLM analyzes the conversation for fraud patterns
+5. **Automated Response**: If fraud is detected, the system can alert emergency contacts or terminate the call
 
-## Documentation disponible
+## Key Features
 
-### 📐 [Architecture](./ARCHITECTURE.md)
-Description détaillée de l'architecture multitenant incluant:
-- Diagrammes des composants
-- Schéma de base de données
-- Flux de traitement des appels
-- Considérations de sécurité
+- ✅ **STIR/SHAKEN Compliant** - Preserves caller authentication through proper call forwarding
+- ✅ **Real-Time Protection** - Analyzes conversations as they happen
+- ✅ **Privacy-First Design** - Only analyzes when keywords are detected
+- ✅ **Scalable Architecture** - Built on Supabase for multi-tenant support
+- ✅ **Low Latency** - Responds within 5-10 seconds of detecting fraud
 
-### 📋 [Plan d'implémentation](./IMPLEMENTATION_PLAN.md)
-Plan détaillé par phases avec:
-- Tâches prioritaires pour le MVP
-- Estimations de temps
-- Technologies recommandées
-- Gestion des risques
+## Architecture Documents
 
-### 🤖 [Guide d'automatisation](./AUTOMATION_GUIDE.md)
-Détails sur:
-- Processus entièrement automatisables
-- Actions nécessitant une intervention utilisateur
-- Scripts et outils CLI disponibles
-- Métriques d'automatisation
+### 📐 [System Architecture](./ARCHITECTURE.md)
+Complete technical architecture including:
+- Call flow with STIR/SHAKEN preservation
+- Real-time transcription pipeline
+- Database schema and triggers
+- Security and isolation model
 
-### 🔧 [Configuration des services](./SERVICES_SETUP.md)
-Instructions complètes pour configurer:
-- Twilio (téléphonie et SMS)
-- Google Cloud Speech (transcription)
-- OpenAI (analyse IA)
-- Supabase (base de données)
-- Services d'hébergement
+### 🔧 [Implementation Guide](./IMPLEMENTATION_GUIDE.md)
+Step-by-step implementation details:
+- Supabase configuration
+- Twilio setup with CallToken
+- Real-time transcription handling
+- Keyword monitoring strategies
+- LLM integration patterns
+
+### 🚀 [Deployment Guide](./DEPLOYMENT_GUIDE.md)
+Production deployment instructions:
+- Environment configuration
+- Security best practices
+- Monitoring and logging
+- Scaling considerations
+
+### 📱 [User Setup Guide](./USER_SETUP_GUIDE.md)
+Instructions for end users:
+- Phone call forwarding setup
+- Emergency contact configuration
+- Privacy settings
+- Testing procedures
+
+### 🔌 [API Reference](./API_REFERENCE.md)
+Complete API documentation:
+- Authentication endpoints
+- User management
+- Call logs and analytics
+- Real-time WebSocket events
 
 ## Quick Start
 
-### Pour commencer le développement:
+### Prerequisites
 
-1. **Cloner le repository**
+- Node.js 18+ 
+- Supabase account
+- Twilio account with voice capabilities
+- OpenAI API access (for LLM fraud analysis)
+
+### Development Setup
+
+1. **Clone the repository**
    ```bash
-   git clone https://github.com/gbdoin/ethiq-fraud-detection.git
+   git clone https://github.com/ethiq/ethiq-fraud-detection.git
    cd ethiq-fraud-detection
    ```
 
-2. **Installer les dépendances**
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-3. **Configurer les services externes**
-   - Suivre le guide [SERVICES_SETUP.md](./SERVICES_SETUP.md)
-   - Copier `.env.example` vers `.env`
-   - Remplir toutes les variables
+3. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your credentials
+   ```
 
-4. **Démarrer le développement**
+4. **Setup Supabase**
+   ```bash
+   npm run db:migrate
+   npm run db:seed
+   ```
+
+5. **Start development server**
    ```bash
    npm run dev
    ```
 
-## Workflow de développement recommandé
+## Technology Stack
 
-### Phase 1: Infrastructure (Priorité haute)
-1. ✅ Configuration Supabase et schéma DB
-2. ✅ Refactoring du serveur pour multitenant
-3. ✅ API d'authentification basique
+- **Backend**: Node.js with Express
+- **Database**: Supabase (PostgreSQL)
+- **Call Handling**: Twilio Voice with CallToken
+- **Transcription**: Twilio Real-Time Transcription
+- **AI Analysis**: OpenAI GPT-4
+- **Real-time**: WebSockets for live updates
 
-### Phase 2: Automatisation (Priorité haute)
-1. ✅ Provisioning automatique Twilio
-2. ✅ Configuration SIP automatique
-3. ✅ Onboarding utilisateur simplifié
+## Security Considerations
 
-### Phase 3: Interface (Priorité moyenne)
-1. ⏳ Dashboard utilisateur
-2. ⏳ Gestion des contacts
-3. ⏳ Historique des appels
+- All calls maintain STIR/SHAKEN attestation
+- End-to-end encryption for sensitive data
+- Row-level security in Supabase
+- API authentication with JWT tokens
+- Audit logging for compliance
 
-### Phase 4: Optimisations (Priorité basse)
-1. ⏳ Monitoring et analytics
-2. ⏳ Scaling et performance
-3. ⏳ Features avancées
+## Contributing
 
-## Points d'attention
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for development guidelines.
 
-### Ce que l'utilisateur DOIT faire manuellement:
-1. **Configurer le renvoi d'appel** sur son téléphone
-2. **Ajouter ses contacts d'urgence**
-3. **Vérifier son identité** (si requis)
+## License
 
-### Ce que le système fait automatiquement:
-1. **Provisionne un numéro Twilio**
-2. **Configure l'adresse SIP**
-3. **Analyse les appels en temps réel**
-4. **Envoie les alertes**
-
-## Support et contribution
-
-### Pour obtenir de l'aide:
-- Consulter la documentation
-- Vérifier les issues GitHub
-- Contacter l'équipe de développement
-
-### Pour contribuer:
-1. Fork le repository
-2. Créer une branche feature
-3. Commiter les changements
-4. Ouvrir une Pull Request
-
-## Ressources utiles
-
-- [Documentation Twilio](https://www.twilio.com/docs)
-- [Google Cloud Speech docs](https://cloud.google.com/speech-to-text/docs)
-- [OpenAI API Reference](https://platform.openai.com/docs)
-- [Supabase Documentation](https://supabase.com/docs)
-
-## Contact
-
-Pour toute question sur l'architecture ou l'implémentation, contacter l'équipe technique Ethiq. 
+Proprietary - See [LICENSE](../LICENSE) for details. 
